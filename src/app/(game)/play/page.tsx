@@ -44,11 +44,13 @@ function GameContent() {
     loadNextRound,
     selectPerson,
     assignPerson,
+    replacePerson,
     completeRound,
     nextRound,
     endGame,
     reset,
     canContinue,
+    canReplace,
   } = useGame();
 
   const [config, setConfig] = useState<GameConfig | null>(null);
@@ -121,6 +123,12 @@ function GameContent() {
 
   const handleSelectPerson = (person: Person | CustomPerson) => {
     selectPerson(person);
+    feedback("tap");
+  };
+
+  const handleReplacePerson = (person: Person | CustomPerson) => {
+    const settings = getCurrentPlayerSettings();
+    replacePerson(person, settings.genderFilter, settings.ageRange);
     feedback("tap");
   };
 
@@ -239,6 +247,9 @@ function GameContent() {
                   (a) => a.person.id === person.id
                 )?.assignment;
 
+                const settings = getCurrentPlayerSettings();
+                const canReplaceThisPerson = canReplace(settings.genderFilter, settings.ageRange);
+
                 return (
                   <PersonCard
                     key={person.id}
@@ -246,6 +257,8 @@ function GameContent() {
                     assignment={assignment}
                     isSelected={selectedPerson?.id === person.id}
                     onClick={() => !assignment && handleSelectPerson(person)}
+                    onReplace={() => handleReplacePerson(person)}
+                    canReplace={canReplaceThisPerson}
                   />
                 );
               })}

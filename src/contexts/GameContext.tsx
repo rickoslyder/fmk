@@ -11,6 +11,7 @@ import {
   gameReducer,
   initialGameState,
   selectThreePeople,
+  selectOnePerson,
   hasEnoughPeople,
   getRemainingAssignments,
   getUnassignedPeople,
@@ -40,6 +41,7 @@ interface GameContextValue extends GameState {
   selectPerson: (person: Person | CustomPerson) => void;
   assignPerson: (person: Person | CustomPerson, assignment: Assignment) => void;
   skipPerson: (person: Person | CustomPerson, replacement: Person | CustomPerson) => void;
+  replacePerson: (person: Person | CustomPerson, genderFilter: Gender[], ageRange: [number, number]) => boolean;
   completeRound: () => void;
   nextRound: () => void;
   endGame: () => void;
@@ -49,6 +51,7 @@ interface GameContextValue extends GameState {
   remainingAssignments: Assignment[];
   unassignedPeople: (Person | CustomPerson)[];
   canContinue: (genderFilter: Gender[], ageRange: [number, number]) => boolean;
+  canReplace: (genderFilter: Gender[], ageRange: [number, number]) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -126,6 +129,40 @@ export function GameProvider({ children }: GameProviderProps) {
     []
   );
 
+  const replacePerson = useCallback(
+    (person: Person | CustomPerson, genderFilter: Gender[], ageRange: [number, number]): boolean => {
+      if (!state.session || !state.currentRound) return false;
+
+      const categoryId = state.session.categoryId;
+      let people: Person[];
+
+      if (categoryId === "random") {
+        people = getRandomPeople(100);
+      } else {
+        people = getPeopleByCategory(categoryId);
+      }
+
+      // Also exclude people currently in the round (not just used)
+      const currentRoundIds = new Set(state.currentRound.people.map(p => p.id));
+      const excludeIds = new Set([...state.usedPersonIds, ...currentRoundIds]);
+
+      const replacement = selectOnePerson(people, {
+        excludeIds,
+        genderFilter,
+        ageRange,
+      });
+
+      if (!replacement) {
+        dispatch({ type: "SET_ERROR", payload: "No replacement available" });
+        return false;
+      }
+
+      dispatch({ type: "REPLACE_PERSON", payload: { oldPerson: person, newPerson: replacement } });
+      return true;
+    },
+    [state.session, state.currentRound, state.usedPersonIds]
+  );
+
   const completeRound = useCallback(() => {
     dispatch({ type: "COMPLETE_ROUND" });
   }, []);
@@ -164,6 +201,34 @@ export function GameProvider({ children }: GameProviderProps) {
     [state.session, state.usedPersonIds]
   );
 
+  const canReplace = useCallback(
+    (genderFilter: Gender[], ageRange: [number, number]): boolean => {
+      if (!state.session || !state.currentRound) return false;
+
+      const categoryId = state.session.categoryId;
+      let people: Person[];
+
+      if (categoryId === "random") {
+        people = getRandomPeople(100);
+      } else {
+        people = getPeopleByCategory(categoryId);
+      }
+
+      // Check if there's at least one eligible person not in current round
+      const currentRoundIds = new Set(state.currentRound.people.map(p => p.id));
+      const excludeIds = new Set([...state.usedPersonIds, ...currentRoundIds]);
+
+      const replacement = selectOnePerson(people, {
+        excludeIds,
+        genderFilter,
+        ageRange,
+      });
+
+      return replacement !== null;
+    },
+    [state.session, state.currentRound, state.usedPersonIds]
+  );
+
   const value: GameContextValue = {
     ...state,
     startGame,
@@ -171,6 +236,7 @@ export function GameProvider({ children }: GameProviderProps) {
     selectPerson,
     assignPerson,
     skipPerson,
+    replacePerson,
     completeRound,
     nextRound,
     endGame,
@@ -178,6 +244,7 @@ export function GameProvider({ children }: GameProviderProps) {
     remainingAssignments: getRemainingAssignments(state),
     unassignedPeople: getUnassignedPeople(state),
     canContinue,
+    canReplace,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

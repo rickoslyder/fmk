@@ -89,6 +89,7 @@ export type GameAction =
   | { type: "SELECT_PERSON"; payload: Person | CustomPerson }
   | { type: "ASSIGN_PERSON"; payload: { person: Person | CustomPerson; assignment: Assignment } }
   | { type: "SKIP_PERSON"; payload: Person | CustomPerson }
+  | { type: "REPLACE_PERSON"; payload: { oldPerson: Person | CustomPerson; newPerson: Person | CustomPerson } }
   | { type: "COMPLETE_ROUND" }
   | { type: "NEXT_ROUND" }
   | { type: "END_GAME" }

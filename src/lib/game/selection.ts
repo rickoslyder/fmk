@@ -82,3 +82,20 @@ export function hasEnoughPeople<T extends Person | CustomPerson>(
   const eligible = filterPeople(people, options);
   return eligible.length >= 3;
 }
+
+/**
+ * Select one random replacement person from the pool
+ */
+export function selectOnePerson<T extends Person | CustomPerson>(
+  people: T[],
+  options: SelectionOptions
+): T | null {
+  const eligible = filterPeople(people, options);
+
+  if (eligible.length === 0) {
+    return null;
+  }
+
+  const shuffled = shuffle(eligible);
+  return shuffled[0];
+}

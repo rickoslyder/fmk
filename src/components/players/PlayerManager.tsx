@@ -90,9 +90,11 @@ export function PlayerManager({
       await db.savedPlayers.put(playerData);
       console.log("[PlayerManager] Player saved successfully");
 
-      // Verify the save worked
-      const allPlayers = await db.savedPlayers.toArray();
-      console.log("[PlayerManager] All players after save:", allPlayers);
+      // Auto-select newly created players if under maxPlayers limit
+      if (editingPlayer.isNew && selectedPlayerIds.length < maxPlayers) {
+        console.log("[PlayerManager] Auto-selecting new player:", playerData.id);
+        onSelectionChange([...selectedPlayerIds, playerData.id]);
+      }
 
       setEditingPlayer(null);
     } catch (error) {

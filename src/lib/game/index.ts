@@ -10,6 +10,7 @@ export {
   filterPeople,
   shuffle,
   selectThreePeople,
+  selectOnePerson,
   hasEnoughPeople,
 } from "./selection";
 

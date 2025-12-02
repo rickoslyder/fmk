@@ -172,6 +172,36 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case "REPLACE_PERSON": {
+      if (!state.currentRound) {
+        return { ...state, error: "No active round" };
+      }
+
+      const { oldPerson, newPerson } = action.payload;
+
+      // Replace the old person with the new one in the people array
+      const newPeople = state.currentRound.people.map((p) =>
+        p.id === oldPerson.id ? newPerson : p
+      ) as [Person | CustomPerson, Person | CustomPerson, Person | CustomPerson];
+
+      const updatedRound: Round = {
+        ...state.currentRound,
+        people: newPeople,
+        skipped: [...state.currentRound.skipped, oldPerson],
+      };
+
+      // Add the new person to used IDs
+      const newUsedIds = new Set(state.usedPersonIds);
+      newUsedIds.add(newPerson.id);
+
+      return {
+        ...state,
+        currentRound: updatedRound,
+        usedPersonIds: newUsedIds,
+        selectedPerson: null,
+      };
+    }
+
     case "COMPLETE_ROUND": {
       if (!state.session || !state.currentRound) {
         return { ...state, error: "No active round" };

@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { User, Loader2 } from "lucide-react";
+import { User, Loader2, RefreshCw, Shuffle } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { usePersonImage } from "@/hooks/usePersonImage";
 import type { Person, CustomPerson, Assignment } from "@/types";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,8 @@ interface PersonCardProps {
   assignment?: Assignment;
   isSelected?: boolean;
   onClick?: () => void;
+  onReplace?: () => void;
+  canReplace?: boolean;
   className?: string;
 }
 
@@ -32,11 +35,23 @@ export function PersonCard({
   assignment,
   isSelected,
   onClick,
+  onReplace,
+  canReplace = false,
   className,
 }: PersonCardProps) {
   const currentYear = new Date().getFullYear();
   const age = person.birthYear ? currentYear - person.birthYear : null;
-  const { imageUrl, status } = usePersonImage(person);
+  const { imageUrl, status, refetch } = usePersonImage(person);
+
+  const handleRefetch = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    refetch();
+  };
+
+  const handleReplace = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onReplace?.();
+  };
 
   return (
     <motion.div
@@ -77,6 +92,36 @@ export function PersonCard({
             />
           )}
         </div>
+
+        {/* Action buttons (top right) - only show when not assigned */}
+        {!assignment && (
+          <div className="absolute top-1 right-1 z-20 flex gap-1">
+            {/* Refetch image button - show when image failed */}
+            {status === "error" && (
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-7 w-7 bg-black/50 hover:bg-black/70 backdrop-blur-sm"
+                onClick={handleRefetch}
+                title="Retry loading image"
+              >
+                <RefreshCw className="h-3.5 w-3.5 text-white" />
+              </Button>
+            )}
+            {/* Replace person button */}
+            {onReplace && canReplace && (
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-7 w-7 bg-black/50 hover:bg-black/70 backdrop-blur-sm"
+                onClick={handleReplace}
+                title="Replace with different person"
+              >
+                <Shuffle className="h-3.5 w-3.5 text-white" />
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Name overlay */}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 z-10">
