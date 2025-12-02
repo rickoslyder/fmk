@@ -5,3 +5,4 @@ export {
   buildGenerationPrompt,
   buildValidationPrompt,
 } from "./prompts";
+export { getGeminiClient, generatePeopleWithGemini } from "./gemini";

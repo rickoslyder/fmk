@@ -39,8 +39,15 @@ export function CustomCategoryForm({ onGenerate, isOffline }: CustomCategoryForm
         throw new Error(data.error || "Failed to generate category");
       }
 
+      // Check if we got any people
+      if (!data.people || data.people.length === 0) {
+        throw new Error("No people were generated. Try a different category description.");
+      }
+
+      console.log(`Generated ${data.people.length} people using ${data.provider || "unknown"}`);
       onGenerate(data.people, data.categoryName);
     } catch (err) {
+      console.error("Generation error:", err);
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsLoading(false);
