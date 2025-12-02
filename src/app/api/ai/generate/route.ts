@@ -68,17 +68,32 @@ export async function POST(request: NextRequest) {
     if (geminiAvailable) {
       try {
         log("[API] Attempting Gemini with Google Search grounding...");
-        generatedPeople = await generatePeopleWithGemini(
+        const geminiResult = await generatePeopleWithGemini(
           prompt,
           count,
           genderFilter,
           ageRange
         );
+        generatedPeople = geminiResult.people;
         provider = "gemini";
+
+        // Merge Gemini's internal logs
+        geminiResult.logs.forEach(l => debugLog.push(l));
+
         log(`[API] Gemini SUCCESS: generated ${generatedPeople.length} people`);
+
+        if (geminiResult.rawResponse) {
+          log(`[API] Raw response length: ${geminiResult.rawResponse.length}`);
+        }
       } catch (geminiError) {
         const errMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
         log(`[API] Gemini FAILED: ${errMsg}`);
+
+        // Capture any logs from the failed Gemini attempt
+        const errWithLogs = geminiError as Error & { logs?: string[] };
+        if (errWithLogs.logs) {
+          errWithLogs.logs.forEach(l => debugLog.push(l));
+        }
 
         if (claudeAvailable) {
           log("[API] Falling back to Claude...");

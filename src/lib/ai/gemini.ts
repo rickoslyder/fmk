@@ -23,6 +23,12 @@ export interface GeminiGeneratedPerson {
   reason?: string;
 }
 
+export interface GeminiGenerationResult {
+  people: GeminiGeneratedPerson[];
+  logs: string[];
+  rawResponse?: string;
+}
+
 /**
  * Generate people using Gemini with Google Search grounding
  * This provides real-time, accurate information about celebrities
@@ -33,8 +39,14 @@ export async function generatePeopleWithGemini(
   genderFilter?: string[],
   ageRange?: [number, number],
   onProgress?: (step: string) => void
-): Promise<GeminiGeneratedPerson[]> {
-  console.log("[Gemini] Starting generation for:", categoryDescription);
+): Promise<GeminiGenerationResult> {
+  const logs: string[] = [];
+  const log = (msg: string) => {
+    console.log(msg);
+    logs.push(msg);
+  };
+
+  log(`[Gemini] Starting generation for: "${categoryDescription}"`);
   onProgress?.("Initializing Gemini AI...");
 
   const client = getGeminiClient();
@@ -77,7 +89,7 @@ IMPORTANT: Output ONLY a valid JSON array with this exact structure, no other te
   }
 ]`;
 
-  console.log("[Gemini] Built prompt, length:", prompt.length);
+  log("[Gemini] Built prompt, length: " + prompt.length);
   onProgress?.("Searching the web for people...");
 
   // Enable Google Search grounding
@@ -85,8 +97,10 @@ IMPORTANT: Output ONLY a valid JSON array with this exact structure, no other te
     googleSearch: {},
   };
 
+  let rawResponse = "";
+
   try {
-    console.log("[Gemini] Calling generateContent with model: gemini-2.5-flash");
+    log("[Gemini] Calling generateContent with model: gemini-2.5-flash");
     const response = await client.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
@@ -95,40 +109,83 @@ IMPORTANT: Output ONLY a valid JSON array with this exact structure, no other te
       },
     });
 
-    console.log("[Gemini] Got response, type:", typeof response);
-    console.log("[Gemini] Response keys:", Object.keys(response || {}));
+    log("[Gemini] Got response, type: " + typeof response);
+    log("[Gemini] Response keys: " + Object.keys(response || {}).join(", "));
 
     onProgress?.("Processing AI response...");
 
-    const text = response.text;
-    console.log("[Gemini] Response text length:", text?.length || 0);
-    console.log("[Gemini] Response text preview:", text?.substring(0, 500) || "EMPTY");
+    // Try multiple ways to get the response text
+    let text = response.text;
+    log("[Gemini] response.text preview: " + (text?.substring(0, 200) || "EMPTY/UNDEFINED"));
 
+    // If .text is empty, try other properties
     if (!text) {
-      // Try to access response differently
-      console.log("[Gemini] No .text property, full response:", JSON.stringify(response, null, 2).substring(0, 1000));
-      throw new Error("No text response from Gemini - response.text is empty");
+      log("[Gemini] Trying alternative response access...");
+      log("[Gemini] response constructor: " + response?.constructor?.name);
+
+      // Try to stringify the whole response
+      try {
+        const fullResponse = JSON.stringify(response, null, 2);
+        log("[Gemini] Full response JSON: " + fullResponse.substring(0, 2000));
+        rawResponse = fullResponse;
+      } catch (e) {
+        log("[Gemini] Could not stringify response: " + e);
+      }
+
+      // Check if response has candidates
+      const anyResponse = response as unknown as Record<string, unknown>;
+      if (anyResponse.candidates) {
+        log("[Gemini] Found candidates: " + JSON.stringify(anyResponse.candidates).substring(0, 500));
+      }
+      if (anyResponse.text === "") {
+        log("[Gemini] response.text is empty string (not undefined)");
+      }
+
+      const err = new Error("No text response from Gemini - response.text is empty or undefined");
+      (err as Error & { logs: string[] }).logs = logs;
+      throw err;
     }
+
+    rawResponse = text;
+    log("[Gemini] Got response text, length: " + text.length);
+    log("[Gemini] First 500 chars: " + text.substring(0, 500));
 
     // Parse JSON response
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      console.error("[Gemini] No JSON array found in response:", text);
-      throw new Error(`No JSON array found in Gemini response. Response was: ${text.substring(0, 200)}`);
+      log("[Gemini] No JSON array found. Full response saved to rawResponse");
+      const err = new Error(`No JSON array in response. Got: ${text.substring(0, 300)}`);
+      (err as Error & { logs: string[]; rawResponse: string }).logs = logs;
+      (err as Error & { logs: string[]; rawResponse: string }).rawResponse = rawResponse;
+      throw err;
     }
 
-    console.log("[Gemini] Found JSON array, length:", jsonMatch[0].length);
+    log("[Gemini] Extracted JSON, length: " + jsonMatch[0].length);
     onProgress?.("Parsing results...");
 
-    const people: GeminiGeneratedPerson[] = JSON.parse(jsonMatch[0]);
-    console.log("[Gemini] Successfully parsed", people.length, "people");
+    let people: GeminiGeneratedPerson[];
+    try {
+      people = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      log("[Gemini] JSON parse error: " + parseError);
+      log("[Gemini] Attempted to parse: " + jsonMatch[0].substring(0, 500));
+      const err = new Error(`Failed to parse JSON: ${parseError}`);
+      (err as Error & { logs: string[] }).logs = logs;
+      throw err;
+    }
 
-    return people;
+    log("[Gemini] Parsed array length: " + people.length);
+    if (people.length > 0) {
+      log("[Gemini] First person: " + JSON.stringify(people[0]));
+    } else {
+      log("[Gemini] WARNING: Parsed array is EMPTY!");
+    }
+
+    return { people, logs, rawResponse };
   } catch (error) {
-    console.error("[Gemini] Error during generation:", error);
+    log("[Gemini] Error during generation: " + (error instanceof Error ? error.message : String(error)));
     if (error instanceof Error) {
-      console.error("[Gemini] Error message:", error.message);
-      console.error("[Gemini] Error stack:", error.stack);
+      (error as Error & { logs: string[] }).logs = logs;
     }
     throw error;
   }

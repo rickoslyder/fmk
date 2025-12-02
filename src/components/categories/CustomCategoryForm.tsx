@@ -55,11 +55,14 @@ export function CustomCategoryForm({ onGenerate, isOffline }: CustomCategoryForm
 
       const data = await response.json();
 
-      // Store debug info if available
+      // Always store debug info
       if (data.debug) {
         setDebugInfo(data.debug);
         console.log("[Debug Log]", data.debug);
       }
+
+      // Log the full response for debugging
+      console.log("[Full API Response]", JSON.stringify(data, null, 2));
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to generate category");
@@ -67,7 +70,8 @@ export function CustomCategoryForm({ onGenerate, isOffline }: CustomCategoryForm
 
       // Check if we got any people
       if (!data.people || data.people.length === 0) {
-        throw new Error("No people were generated. Try a different category description.");
+        // Keep debug info visible for this error case
+        throw new Error(`No people were generated (provider: ${data.provider || "unknown"}). Check debug info below.`);
       }
 
       console.log(`Generated ${data.people.length} people using ${data.provider || "unknown"}`);
