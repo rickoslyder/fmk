@@ -154,9 +154,17 @@ export function useOnboardingComplete(): boolean | undefined {
  * Hook to get all saved players
  */
 export function useSavedPlayers(): SavedPlayer[] | undefined {
-  return useLiveQuery(() =>
-    db.savedPlayers.orderBy("lastPlayedAt").reverse().toArray()
-  );
+  return useLiveQuery(async () => {
+    try {
+      const players = await db.savedPlayers.toArray();
+      console.log("[useSavedPlayers] Loaded players:", players.length);
+      // Sort by createdAt descending (newest first) - simpler and more reliable
+      return players.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch (error) {
+      console.error("[useSavedPlayers] Error loading players:", error);
+      return [];
+    }
+  });
 }
 
 /**

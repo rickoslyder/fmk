@@ -67,7 +67,13 @@ export function PlayerManager({
   };
 
   const handleSavePlayer = async () => {
-    if (!editingPlayer || !editingPlayer.name.trim()) return;
+    console.log("[PlayerManager] handleSavePlayer called");
+    console.log("[PlayerManager] editingPlayer:", editingPlayer);
+
+    if (!editingPlayer || !editingPlayer.name.trim()) {
+      console.log("[PlayerManager] Early return - no editingPlayer or empty name");
+      return;
+    }
 
     try {
       const playerData: SavedPlayer = {
@@ -80,10 +86,17 @@ export function PlayerManager({
         lastPlayedAt: savedPlayers?.find((p) => p.id === editingPlayer.id)?.lastPlayedAt,
       };
 
+      console.log("[PlayerManager] Saving player data:", playerData);
       await db.savedPlayers.put(playerData);
+      console.log("[PlayerManager] Player saved successfully");
+
+      // Verify the save worked
+      const allPlayers = await db.savedPlayers.toArray();
+      console.log("[PlayerManager] All players after save:", allPlayers);
+
       setEditingPlayer(null);
     } catch (error) {
-      console.error("Failed to save player:", error);
+      console.error("[PlayerManager] Failed to save player:", error);
     }
   };
 
