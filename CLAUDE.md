@@ -112,10 +112,21 @@ public/
 - **PWA Support**: Manifest, service worker, install prompt
 - **Offline Mode**: Offline indicator, graceful degradation
 
+## Admin Panel
+
+Access at `/admin`. Features:
+
+- **Dashboard**: Stats overview (people, categories, games, cache size)
+- **Categories**: View/manage pre-built and custom categories
+- **Category Detail**: Add/edit/delete people within categories
+- **People**: Browse all people with search and filters
+- **Game History**: View/delete game records with round details
+- **Image Cache**: View cached images, clear cache
+- **Database**: Export/import data, re-seed, clear user data
+
 ## Not Yet Implemented
 
 - Daily challenges (Vercel KV) - explicitly deferred
-- Admin panel
 - PNG icons (currently SVG placeholder)
 
 ## Environment Variables
