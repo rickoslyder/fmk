@@ -8,6 +8,7 @@ import type {
   CustomCategory,
   GameHistoryEntry,
   Gender,
+  SavedPlayer,
 } from "@/types";
 import type { CustomList, CachedImage } from "./schema";
 import { DEFAULT_PREFERENCES } from "@/types";
@@ -147,4 +148,20 @@ export function useOnboardingComplete(): boolean | undefined {
     const prefs = await db.preferences.get("user-preferences");
     return prefs?.onboardingComplete ?? false;
   }, []);
+}
+
+/**
+ * Hook to get all saved players
+ */
+export function useSavedPlayers(): SavedPlayer[] | undefined {
+  return useLiveQuery(() =>
+    db.savedPlayers.orderBy("lastPlayedAt").reverse().toArray()
+  );
+}
+
+/**
+ * Hook to get a single saved player
+ */
+export function useSavedPlayer(id: string): SavedPlayer | undefined {
+  return useLiveQuery(() => db.savedPlayers.get(id), [id]);
 }

@@ -2,16 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, X } from "lucide-react";
+import { Download, X, Share } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePWA } from "@/hooks/usePWA";
 
 /**
  * Install banner that prompts users to install the PWA
  * Shows after a delay and can be dismissed
+ * Handles both Chromium (automatic prompt) and iOS Safari (manual instructions)
  */
 export function InstallBanner() {
-  const { isInstallable, isInstalled, promptInstall } = usePWA();
+  const { isInstallable, isInstalled, isIOS, isSafari, promptInstall } = usePWA();
   const [isDismissed, setIsDismissed] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
 
@@ -47,6 +48,9 @@ export function InstallBanner() {
     }
   };
 
+  // Determine if this is iOS Safari (needs manual instructions)
+  const isIOSSafari = isIOS && isSafari;
+
   return (
     <AnimatePresence>
       {showBanner && (
@@ -58,19 +62,31 @@ export function InstallBanner() {
         >
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">
-              <Download className="h-5 w-5 text-primary" />
+              {isIOSSafari ? (
+                <Share className="h-5 w-5 text-primary" />
+              ) : (
+                <Download className="h-5 w-5 text-primary" />
+              )}
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-sm">Install FMK</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Add to your home screen for the best experience
-              </p>
+              {isIOSSafari ? (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tap the <Share className="h-3 w-3 inline-block mx-0.5" /> Share button, then &quot;Add to Home Screen&quot;
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Add to your home screen for the best experience
+                </p>
+              )}
               <div className="flex gap-2 mt-3">
-                <Button size="sm" onClick={handleInstall}>
-                  Install
-                </Button>
-                <Button size="sm" variant="ghost" onClick={handleDismiss}>
-                  Not now
+                {!isIOSSafari && (
+                  <Button size="sm" onClick={handleInstall}>
+                    Install
+                  </Button>
+                )}
+                <Button size="sm" variant={isIOSSafari ? "default" : "ghost"} onClick={handleDismiss}>
+                  {isIOSSafari ? "Got it" : "Not now"}
                 </Button>
               </div>
             </div>

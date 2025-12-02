@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { getCategoryById } from "@/data/categories";
-import { usePreferences } from "@/lib/db/hooks";
-import type { GameMode, TimerConfig } from "@/types";
+import { usePreferences, useSavedPlayers } from "@/lib/db/hooks";
+import { db } from "@/lib/db";
+import { PlayerManager } from "@/components/players";
+import type { GameMode, TimerConfig, SavedPlayer } from "@/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -17,15 +19,19 @@ function SetupContent() {
   const searchParams = useSearchParams();
   const categoryId = searchParams.get("category") || "movie-stars";
   const preferences = usePreferences();
+  const savedPlayers = useSavedPlayers();
 
   const category = getCategoryById(categoryId);
   const categoryName = category?.name ?? categoryId === "random" ? "Random Mix" : categoryId === "daily" ? "Daily Challenge" : "Unknown";
 
   const [mode, setMode] = useState<GameMode>("solo");
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [timerDuration, setTimerDuration] = useState(30);
 
-  const handleStart = () => {
+  const canStart = mode === "solo" || selectedPlayerIds.length >= 2;
+
+  const handleStart = async () => {
     const timerConfig: TimerConfig = {
       enabled: timerEnabled,
       decisionTime: timerDuration,
@@ -33,12 +39,40 @@ function SetupContent() {
       tickSound: preferences?.soundEnabled ?? true,
     };
 
+    // Get selected players with their settings
+    let players: Array<{ id: string; name: string; genderFilter: string[]; ageRange: [number, number] }> = [];
+
+    if (mode === "pass-and-play" && savedPlayers) {
+      players = selectedPlayerIds
+        .map((id) => savedPlayers.find((p) => p.id === id))
+        .filter((p): p is SavedPlayer => p !== undefined)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          genderFilter: p.genderFilter,
+          ageRange: p.ageRange,
+        }));
+
+      // Update lastPlayedAt for selected players
+      for (const playerId of selectedPlayerIds) {
+        await db.savedPlayers.update(playerId, { lastPlayedAt: Date.now() });
+      }
+    } else {
+      players = [{
+        id: "solo",
+        name: "Player",
+        genderFilter: preferences?.genderFilter || ["male", "female", "other"],
+        ageRange: preferences?.ageRange || [18, 99],
+      }];
+    }
+
     // Store game config in sessionStorage for the play page
     sessionStorage.setItem("fmk-game-config", JSON.stringify({
       categoryId,
       categoryName,
       mode,
       timerConfig,
+      players,
     }));
 
     router.push("/play");
@@ -96,6 +130,19 @@ function SetupContent() {
         </div>
       </section>
 
+      {/* Player Selection (Pass & Play only) */}
+      {mode === "pass-and-play" && (
+        <section>
+          <h2 className="text-sm font-medium mb-3">Select Players</h2>
+          <PlayerManager
+            selectedPlayerIds={selectedPlayerIds}
+            onSelectionChange={setSelectedPlayerIds}
+            minPlayers={2}
+            maxPlayers={10}
+          />
+        </section>
+      )}
+
       {/* Timer Options */}
       <section>
         <h2 className="text-sm font-medium mb-3">Timer (Optional)</h2>
@@ -138,9 +185,12 @@ function SetupContent() {
         onClick={handleStart}
         size="touch-lg"
         className="w-full"
+        disabled={!canStart}
       >
         <Play className="h-5 w-5 mr-2" />
-        Start Game
+        {mode === "pass-and-play" && selectedPlayerIds.length < 2
+          ? `Select ${2 - selectedPlayerIds.length} more player${2 - selectedPlayerIds.length !== 1 ? "s" : ""}`
+          : "Start Game"}
       </Button>
     </div>
   );

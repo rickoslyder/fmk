@@ -15,6 +15,8 @@ interface RoundSummaryProps {
   onNextRound: () => void;
   onEndGame: () => void;
   canContinue: boolean;
+  currentPlayerName?: string;
+  nextPlayerName?: string;
 }
 
 const assignmentLabels: Record<Assignment, string> = {
@@ -35,6 +37,8 @@ export function RoundSummary({
   onNextRound,
   onEndGame,
   canContinue,
+  currentPlayerName,
+  nextPlayerName,
 }: RoundSummaryProps) {
   const [shareStatus, setShareStatus] = useState<"idle" | "shared" | "copied">("idle");
 
@@ -60,7 +64,9 @@ export function RoundSummary({
     >
       <div className="text-center">
         <h2 className="text-2xl font-bold">Round Complete!</h2>
-        <p className="text-muted-foreground mt-1">Here&apos;s what you chose:</p>
+        <p className="text-muted-foreground mt-1">
+          {currentPlayerName ? `${currentPlayerName}'s choices:` : "Here's what you chose:"}
+        </p>
       </div>
 
       {/* Assignments */}
@@ -100,7 +106,7 @@ export function RoundSummary({
       <div className="flex flex-col gap-3">
         {canContinue ? (
           <Button onClick={onNextRound} size="touch-lg" className="w-full">
-            Next Round
+            {nextPlayerName ? `${nextPlayerName}'s Turn` : "Next Round"}
             <ArrowRight className="h-5 w-5 ml-2" />
           </Button>
         ) : (

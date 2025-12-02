@@ -9,15 +9,23 @@ import { Button } from "@/components/ui/button";
 import { LoadingScreen } from "@/components/shared/LoadingSpinner";
 import { usePreferences } from "@/lib/db/hooks";
 import { useFeedback } from "@/hooks/useFeedback";
-import type { GameMode, TimerConfig, Assignment, Person, CustomPerson } from "@/types";
+import type { GameMode, TimerConfig, Assignment, Person, CustomPerson, Gender } from "@/types";
 import { Home } from "lucide-react";
 import Link from "next/link";
+
+interface PlayerConfig {
+  id: string;
+  name: string;
+  genderFilter: Gender[];
+  ageRange: [number, number];
+}
 
 interface GameConfig {
   categoryId: string;
   categoryName: string;
   mode: GameMode;
   timerConfig: TimerConfig;
+  players?: PlayerConfig[];
 }
 
 function GameContent() {
@@ -44,6 +52,31 @@ function GameContent() {
   } = useGame();
 
   const [config, setConfig] = useState<GameConfig | null>(null);
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+
+  // Get current player settings
+  const getCurrentPlayerSettings = useCallback((): { genderFilter: Gender[]; ageRange: [number, number] } => {
+    if (config?.players && config.players.length > 0 && config.mode === "pass-and-play") {
+      const currentPlayer = config.players[currentPlayerIndex % config.players.length];
+      return {
+        genderFilter: currentPlayer.genderFilter as Gender[],
+        ageRange: currentPlayer.ageRange,
+      };
+    }
+    // Default to first player (solo) or global preferences
+    if (config?.players && config.players.length > 0) {
+      return {
+        genderFilter: config.players[0].genderFilter as Gender[],
+        ageRange: config.players[0].ageRange,
+      };
+    }
+    return {
+      genderFilter: preferences?.genderFilter || ["male", "female", "other"],
+      ageRange: preferences?.ageRange || [18, 99],
+    };
+  }, [config, currentPlayerIndex, preferences]);
+
+  const currentPlayer = config?.players?.[currentPlayerIndex % (config?.players?.length || 1)];
 
   // Load game config from sessionStorage
   useEffect(() => {
@@ -74,9 +107,10 @@ function GameContent() {
   // Load first round when game is started
   useEffect(() => {
     if (status === "selecting" && preferences) {
-      loadNextRound(preferences.genderFilter, preferences.ageRange);
+      const settings = getCurrentPlayerSettings();
+      loadNextRound(settings.genderFilter, settings.ageRange);
     }
-  }, [status, preferences, loadNextRound]);
+  }, [status, preferences, loadNextRound, getCurrentPlayerSettings]);
 
   const handleAssign = (assignment: Assignment) => {
     if (selectedPerson) {
@@ -93,6 +127,10 @@ function GameContent() {
   const handleNextRound = () => {
     completeRound();
     feedback("success");
+    // Advance to next player in pass-and-play mode
+    if (config?.mode === "pass-and-play" && config.players && config.players.length > 0) {
+      setCurrentPlayerIndex((prev) => prev + 1);
+    }
   };
 
   const handleEndGame = () => {
@@ -121,13 +159,24 @@ function GameContent() {
 
   // Review state
   if (status === "reviewing" && currentRound) {
+    // Get next player's settings for canContinue check
+    const nextPlayerIndex = config?.mode === "pass-and-play" && config.players && config.players.length > 0
+      ? (currentPlayerIndex + 1) % config.players.length
+      : 0;
+    const nextPlayerSettings = config?.players?.[nextPlayerIndex];
+    const continueSettings = nextPlayerSettings
+      ? { genderFilter: nextPlayerSettings.genderFilter as Gender[], ageRange: nextPlayerSettings.ageRange }
+      : { genderFilter: preferences?.genderFilter || ["male", "female", "other"] as Gender[], ageRange: preferences?.ageRange || [18, 99] as [number, number] };
+
     return (
       <RoundSummary
         round={currentRound}
         categoryName={session?.categoryName || config?.categoryName || "FMK"}
         onNextRound={handleNextRound}
         onEndGame={handleEndGame}
-        canContinue={canContinue(preferences.genderFilter, preferences.ageRange)}
+        canContinue={canContinue(continueSettings.genderFilter, continueSettings.ageRange)}
+        currentPlayerName={currentPlayer?.name}
+        nextPlayerName={config?.mode === "pass-and-play" ? config.players?.[nextPlayerIndex]?.name : undefined}
       />
     );
   }
@@ -162,6 +211,7 @@ function GameContent() {
             <h1 className="font-bold">{session?.categoryName}</h1>
             <p className="text-sm text-muted-foreground">
               Round {(session?.rounds.length ?? 0) + 1}
+              {currentPlayer && ` • ${currentPlayer.name}'s turn`}
             </p>
           </div>
           {config.timerConfig.enabled && (

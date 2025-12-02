@@ -12,6 +12,8 @@ interface PWAState {
   isInstalled: boolean;
   isOnline: boolean;
   isUpdateAvailable: boolean;
+  isIOS: boolean;
+  isSafari: boolean;
 }
 
 /**
@@ -26,19 +28,35 @@ export function usePWA() {
     isInstalled: false,
     isOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
     isUpdateAvailable: false,
+    isIOS: false,
+    isSafari: false,
   });
 
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
 
-  // Check if app is installed (standalone mode)
+  // Check if app is installed (standalone mode) and detect platform
   useEffect(() => {
     if (typeof window !== "undefined") {
       const isStandalone =
         window.matchMedia("(display-mode: standalone)").matches ||
         (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-      setState((prev) => ({ ...prev, isInstalled: isStandalone }));
+      // Detect iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+        !(window as Window & { MSStream?: unknown }).MSStream;
+
+      // Detect Safari (including iOS Safari)
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+      setState((prev) => ({
+        ...prev,
+        isInstalled: isStandalone,
+        isIOS,
+        isSafari,
+        // iOS Safari is "installable" via Add to Home Screen
+        isInstallable: isIOS && isSafari && !isStandalone,
+      }));
     }
   }, []);
 

@@ -5,6 +5,7 @@ import type {
   CustomPerson,
   CustomCategory,
   GameHistoryEntry,
+  SavedPlayer,
 } from "@/types";
 
 /** Cached image record */
@@ -42,6 +43,7 @@ export class FMKDatabase extends Dexie {
   gameHistory!: EntityTable<GameHistoryEntry, "id">;
   cachedImages!: EntityTable<CachedImage, "id">;
   dailyChallenges!: EntityTable<DailyChallengeCache, "date">;
+  savedPlayers!: EntityTable<SavedPlayer, "id">;
 
   constructor() {
     super("fmk-database");
@@ -70,6 +72,19 @@ export class FMKDatabase extends Dexie {
 
       // Daily challenge cache
       dailyChallenges: "date, fetchedAt",
+    });
+
+    // Version 2: Add saved players table
+    this.version(2).stores({
+      preferences: "id",
+      people: "id, categoryId, gender, name, birthYear",
+      customPeople: "id, listId, gender, name, createdAt",
+      customCategories: "id, createdAt",
+      customLists: "id, createdAt",
+      gameHistory: "id, categoryId, playedAt",
+      cachedImages: "id, personId, lastAccessed",
+      dailyChallenges: "date, fetchedAt",
+      savedPlayers: "id, name, createdAt, lastPlayedAt",
     });
   }
 }

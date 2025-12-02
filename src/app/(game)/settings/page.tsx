@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Settings, RotateCcw } from "lucide-react";
+import { Settings, RotateCcw, Download, Share, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { usePreferences, useUpdatePreferences } from "@/lib/db/hooks";
 import { clearAllData } from "@/lib/db/init";
+import { usePWA } from "@/hooks/usePWA";
 import type { Gender } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -20,11 +21,18 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
 export default function SettingsPage() {
   const preferences = usePreferences();
   const updatePreferences = useUpdatePreferences();
+  const { isInstallable, isInstalled, isIOS, isSafari, promptInstall } = usePWA();
   const [isSaving, setIsSaving] = useState(false);
 
   if (!preferences) {
     return <div className="p-4">Loading...</div>;
   }
+
+  const isIOSSafari = isIOS && isSafari;
+
+  const handleInstall = async () => {
+    await promptInstall();
+  };
 
   const handleGenderToggle = async (gender: Gender) => {
     const newFilter = preferences.genderFilter.includes(gender)
@@ -136,6 +144,41 @@ export default function SettingsPage() {
               onCheckedChange={handleHapticsToggle}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Install App */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Install App</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isInstalled ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span>App is installed</span>
+            </div>
+          ) : isIOSSafari ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                To install on iOS:
+              </p>
+              <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1">
+                <li>Tap the <Share className="h-3 w-3 inline-block mx-0.5" /> Share button in Safari</li>
+                <li>Scroll down and tap &quot;Add to Home Screen&quot;</li>
+                <li>Tap &quot;Add&quot; to confirm</li>
+              </ol>
+            </div>
+          ) : isInstallable ? (
+            <Button onClick={handleInstall} className="w-full">
+              <Download className="h-4 w-4 mr-2" />
+              Install App
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Install is available in supported browsers (Chrome, Edge, Safari on iOS)
+            </p>
+          )}
         </CardContent>
       </Card>
 
