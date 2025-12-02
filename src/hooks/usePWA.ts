@@ -16,6 +16,21 @@ interface PWAState {
   isSafari: boolean;
 }
 
+// Global storage for the install prompt event (in case it fires before component mounts)
+declare global {
+  interface Window {
+    __pwaInstallPrompt?: BeforeInstallPromptEvent;
+  }
+}
+
+// Capture the event globally as early as possible
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    window.__pwaInstallPrompt = e as BeforeInstallPromptEvent;
+  });
+}
+
 /**
  * Hook for managing PWA functionality
  * - Install prompt
@@ -62,9 +77,17 @@ export function usePWA() {
 
   // Handle beforeinstallprompt event
   useEffect(() => {
+    // Check if we already captured the prompt globally before this component mounted
+    if (window.__pwaInstallPrompt) {
+      setDeferredPrompt(window.__pwaInstallPrompt);
+      setState((prev) => ({ ...prev, isInstallable: true }));
+    }
+
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      const promptEvent = e as BeforeInstallPromptEvent;
+      window.__pwaInstallPrompt = promptEvent;
+      setDeferredPrompt(promptEvent);
       setState((prev) => ({ ...prev, isInstallable: true }));
     };
 
@@ -147,13 +170,20 @@ export function usePWA() {
   const promptInstall = useCallback(async (): Promise<boolean> => {
     if (!deferredPrompt) return false;
 
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
 
-    setDeferredPrompt(null);
-    setState((prev) => ({ ...prev, isInstallable: false }));
+      // Clear both local and global prompt
+      setDeferredPrompt(null);
+      window.__pwaInstallPrompt = undefined;
+      setState((prev) => ({ ...prev, isInstallable: false }));
 
-    return outcome === "accepted";
+      return outcome === "accepted";
+    } catch (error) {
+      console.error("Install prompt failed:", error);
+      return false;
+    }
   }, [deferredPrompt]);
 
   // Reload to update

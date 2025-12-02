@@ -69,18 +69,22 @@ export function PlayerManager({
   const handleSavePlayer = async () => {
     if (!editingPlayer || !editingPlayer.name.trim()) return;
 
-    const playerData: SavedPlayer = {
-      id: editingPlayer.id,
-      name: editingPlayer.name.trim(),
-      avatarColor: editingPlayer.avatarColor,
-      genderFilter: editingPlayer.genderFilter,
-      ageRange: editingPlayer.ageRange,
-      createdAt: editingPlayer.isNew ? Date.now() : (savedPlayers?.find((p) => p.id === editingPlayer.id)?.createdAt || Date.now()),
-      lastPlayedAt: savedPlayers?.find((p) => p.id === editingPlayer.id)?.lastPlayedAt,
-    };
+    try {
+      const playerData: SavedPlayer = {
+        id: editingPlayer.id,
+        name: editingPlayer.name.trim(),
+        avatarColor: editingPlayer.avatarColor,
+        genderFilter: editingPlayer.genderFilter,
+        ageRange: editingPlayer.ageRange,
+        createdAt: editingPlayer.isNew ? Date.now() : (savedPlayers?.find((p) => p.id === editingPlayer.id)?.createdAt || Date.now()),
+        lastPlayedAt: savedPlayers?.find((p) => p.id === editingPlayer.id)?.lastPlayedAt,
+      };
 
-    await db.savedPlayers.put(playerData);
-    setEditingPlayer(null);
+      await db.savedPlayers.put(playerData);
+      setEditingPlayer(null);
+    } catch (error) {
+      console.error("Failed to save player:", error);
+    }
   };
 
   const handleDeletePlayer = async () => {
@@ -323,10 +327,11 @@ export function PlayerManager({
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingPlayer(null)}>
+            <Button type="button" variant="outline" onClick={() => setEditingPlayer(null)}>
               Cancel
             </Button>
             <Button
+              type="button"
               onClick={handleSavePlayer}
               disabled={!editingPlayer?.name.trim()}
             >
