@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { getCategoryById } from "@/data/categories";
-import { usePreferences, useSavedPlayers } from "@/lib/db/hooks";
+import { usePreferences, useSavedPlayers, useCustomCategories } from "@/lib/db/hooks";
 import { db } from "@/lib/db";
 import { PlayerManager } from "@/components/players";
 import type { GameMode, TimerConfig, SavedPlayer } from "@/types";
@@ -18,11 +18,35 @@ function SetupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const categoryId = searchParams.get("category") || "movie-stars";
+  const isCustom = searchParams.get("custom") === "true";
   const preferences = usePreferences();
   const savedPlayers = useSavedPlayers();
+  const customCategories = useCustomCategories();
 
-  const category = getCategoryById(categoryId);
-  const categoryName = category?.name ?? categoryId === "random" ? "Random Mix" : categoryId === "daily" ? "Daily Challenge" : "Unknown";
+  // Get category name from either pre-built or custom categories
+  const getCategoryName = (): string => {
+    // Check pre-built categories first
+    const prebuiltCategory = getCategoryById(categoryId);
+    if (prebuiltCategory) {
+      return prebuiltCategory.name;
+    }
+
+    // Check custom categories
+    if (isCustom && customCategories) {
+      const customCategory = customCategories.find(c => c.id === categoryId);
+      if (customCategory) {
+        return customCategory.name;
+      }
+    }
+
+    // Special cases
+    if (categoryId === "random") return "Random Mix";
+    if (categoryId === "daily") return "Daily Challenge";
+
+    return "Unknown Category";
+  };
+
+  const categoryName = getCategoryName();
 
   const [mode, setMode] = useState<GameMode>("solo");
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
