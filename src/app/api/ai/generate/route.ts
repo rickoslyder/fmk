@@ -23,25 +23,51 @@ interface GeneratedPerson {
 }
 
 export async function POST(request: NextRequest) {
+  const debugLog: string[] = [];
+  const log = (msg: string) => {
+    console.log(msg);
+    debugLog.push(`${new Date().toISOString()}: ${msg}`);
+  };
+
   try {
     const body: GenerateRequest = await request.json();
     const { prompt, count = 30, genderFilter, ageRange } = body;
 
+    log(`[API] Received request for: "${prompt}" (count: ${count})`);
+
     if (!prompt || prompt.trim().length < 3) {
       return NextResponse.json(
-        { error: "Please provide a category description" },
+        { error: "Please provide a category description", debug: debugLog },
         { status: 400 }
       );
     }
 
     let generatedPeople: GeneratedPerson[];
     let provider: "gemini" | "anthropic";
+    let geminiAvailable = false;
+    let claudeAvailable = false;
+
+    // Check what's available
+    try {
+      const geminiClient = getGeminiClient();
+      geminiAvailable = !!geminiClient;
+      log(`[API] Gemini available: ${geminiAvailable}`);
+    } catch (e) {
+      log(`[API] Gemini check error: ${e}`);
+    }
+
+    try {
+      const anthropicKey = process.env.ANTHROPIC_API_KEY;
+      claudeAvailable = !!anthropicKey;
+      log(`[API] Claude available: ${claudeAvailable}`);
+    } catch (e) {
+      log(`[API] Claude check error: ${e}`);
+    }
 
     // Try Gemini with Google Search grounding first (better for real-time info)
-    const geminiClient = getGeminiClient();
-    if (geminiClient) {
+    if (geminiAvailable) {
       try {
-        console.log("Using Gemini with Google Search grounding...");
+        log("[API] Attempting Gemini with Google Search grounding...");
         generatedPeople = await generatePeopleWithGemini(
           prompt,
           count,
@@ -49,18 +75,34 @@ export async function POST(request: NextRequest) {
           ageRange
         );
         provider = "gemini";
-        console.log(`Gemini generated ${generatedPeople.length} people`);
+        log(`[API] Gemini SUCCESS: generated ${generatedPeople.length} people`);
       } catch (geminiError) {
-        console.error("Gemini generation failed, falling back to Claude:", geminiError);
-        // Fall through to Claude
-        generatedPeople = await generateWithClaude(prompt, count, genderFilter, ageRange);
-        provider = "anthropic";
+        const errMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
+        log(`[API] Gemini FAILED: ${errMsg}`);
+
+        if (claudeAvailable) {
+          log("[API] Falling back to Claude...");
+          generatedPeople = await generateWithClaude(prompt, count, genderFilter, ageRange);
+          provider = "anthropic";
+          log(`[API] Claude SUCCESS: generated ${generatedPeople.length} people`);
+        } else {
+          throw new Error(`Gemini failed: ${errMsg}. Claude not available as fallback.`);
+        }
       }
-    } else {
-      // Use Claude as fallback
-      console.log("Gemini not configured, using Claude...");
+    } else if (claudeAvailable) {
+      log("[API] Using Claude (Gemini not configured)...");
       generatedPeople = await generateWithClaude(prompt, count, genderFilter, ageRange);
       provider = "anthropic";
+      log(`[API] Claude SUCCESS: generated ${generatedPeople.length} people`);
+    } else {
+      log("[API] No AI providers available!");
+      return NextResponse.json(
+        {
+          error: "No AI providers configured. Set GOOGLE_AI_API_KEY or ANTHROPIC_API_KEY.",
+          debug: debugLog
+        },
+        { status: 503 }
+      );
     }
 
     // Convert to Person format
@@ -73,28 +115,30 @@ export async function POST(request: NextRequest) {
       categoryId,
     }));
 
+    log(`[API] Returning ${people.length} people`);
+
     return NextResponse.json({
       success: true,
       categoryId,
       categoryName: prompt,
       people,
       provider,
-      rawResponse: generatedPeople,
+      count: people.length,
+      debug: debugLog,
     });
   } catch (error) {
-    console.error("AI generation error:", error);
-
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorStack = error instanceof Error ? error.stack : undefined;
 
-    if (errorMessage.includes("API_KEY")) {
-      return NextResponse.json(
-        { error: "AI service not configured. Please set GOOGLE_AI_API_KEY or ANTHROPIC_API_KEY." },
-        { status: 503 }
-      );
-    }
+    log(`[API] FATAL ERROR: ${errorMessage}`);
+    console.error("Full error:", error);
 
     return NextResponse.json(
-      { error: `Failed to generate category: ${errorMessage}` },
+      {
+        error: `Failed to generate: ${errorMessage}`,
+        debug: debugLog,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
+      },
       { status: 500 }
     );
   }

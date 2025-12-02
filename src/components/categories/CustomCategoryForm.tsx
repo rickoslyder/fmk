@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Wand2, Loader2 } from "lucide-react";
+import { Wand2, Loader2, AlertCircle, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Person } from "@/types";
@@ -11,10 +11,21 @@ interface CustomCategoryFormProps {
   isOffline?: boolean;
 }
 
+const LOADING_MESSAGES = [
+  "Connecting to AI...",
+  "Searching the web for people...",
+  "Finding famous faces...",
+  "Gathering celebrity data...",
+  "Almost there...",
+];
+
 export function CustomCategoryForm({ onGenerate, isOffline }: CustomCategoryFormProps) {
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string[] | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +33,15 @@ export function CustomCategoryForm({ onGenerate, isOffline }: CustomCategoryForm
 
     setIsLoading(true);
     setError(null);
+    setDebugInfo(null);
+    setLoadingMessage(LOADING_MESSAGES[0]);
+
+    // Cycle through loading messages
+    let messageIndex = 0;
+    const messageInterval = setInterval(() => {
+      messageIndex = (messageIndex + 1) % LOADING_MESSAGES.length;
+      setLoadingMessage(LOADING_MESSAGES[messageIndex]);
+    }, 2000);
 
     try {
       const response = await fetch("/api/ai/generate", {
@@ -34,6 +54,12 @@ export function CustomCategoryForm({ onGenerate, isOffline }: CustomCategoryForm
       });
 
       const data = await response.json();
+
+      // Store debug info if available
+      if (data.debug) {
+        setDebugInfo(data.debug);
+        console.log("[Debug Log]", data.debug);
+      }
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to generate category");
@@ -50,7 +76,9 @@ export function CustomCategoryForm({ onGenerate, isOffline }: CustomCategoryForm
       console.error("Generation error:", err);
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
+      clearInterval(messageInterval);
       setIsLoading(false);
+      setLoadingMessage("");
     }
   };
 
@@ -95,8 +123,28 @@ export function CustomCategoryForm({ onGenerate, isOffline }: CustomCategoryForm
 
       {error && (
         <Card className="border-destructive bg-destructive/10">
-          <CardContent className="p-3 text-sm text-destructive">
-            {error}
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-start gap-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+            {debugInfo && debugInfo.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowDebug(!showDebug)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <Bug className="h-3 w-3" />
+                  {showDebug ? "Hide" : "Show"} debug info
+                </button>
+                {showDebug && (
+                  <pre className="mt-2 text-xs bg-background/50 p-2 rounded overflow-x-auto max-h-48 overflow-y-auto">
+                    {debugInfo.join("\n")}
+                  </pre>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -116,10 +164,15 @@ export function CustomCategoryForm({ onGenerate, isOffline }: CustomCategoryForm
         disabled={!prompt.trim() || isLoading || isOffline}
       >
         {isLoading ? (
-          <>
-            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-            Generating...
-          </>
+          <div className="flex flex-col items-center">
+            <div className="flex items-center">
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              <span>Generating...</span>
+            </div>
+            {loadingMessage && (
+              <span className="text-xs opacity-75 mt-1">{loadingMessage}</span>
+            )}
+          </div>
         ) : (
           <>
             <Wand2 className="h-5 w-5 mr-2" />
