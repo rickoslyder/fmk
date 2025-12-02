@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Check, Play, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, Play, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,6 +32,11 @@ export function CategoryReviewModal({
   onSave,
 }: CategoryReviewModalProps) {
   const [people, setPeople] = useState(initialPeople);
+
+  // Update people when initialPeople changes (e.g., when new category is generated)
+  useEffect(() => {
+    setPeople(initialPeople);
+  }, [initialPeople]);
 
   const handleRemovePerson = (personId: string) => {
     setPeople((prev) => prev.filter((p) => p.id !== personId));

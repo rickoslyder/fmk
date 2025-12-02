@@ -54,40 +54,43 @@ export async function generatePeopleWithGemini(
     throw new Error("GOOGLE_AI_API_KEY environment variable is not set");
   }
 
-  // Build the prompt
-  let prompt = `Generate a list of exactly ${count} real, famous people for a party game category: "${categoryDescription}"
+  // Build the prompt - designed to trigger Google Search grounding
+  let prompt = `I need you to search the web and find REAL people who match this specific category: "${categoryDescription}"
 
-Requirements:
-1. Only include REAL people who are publicly well-known
-2. Prioritize people who are currently relevant and recognizable
-3. Include people who would have photos available online
-4. Each person must be an adult (18+)`;
+IMPORTANT: You MUST use Google Search to find the ACTUAL people for this category. Do NOT make up names or guess. Search for real, verified information.
+
+For example:
+- If asked for "Big Brother 2025 contestants", search for the actual cast list
+- If asked for "Oscar 2024 winners", search for the real winners
+- If asked for "current NBA players", search for actual roster information
+
+Search the web now and find ${count} real people matching: "${categoryDescription}"`;
 
   if (genderFilter && genderFilter.length < 3) {
     const genders = genderFilter.join(" and ");
-    prompt += `\n5. Only include ${genders} people`;
+    prompt += `\n\nFilter: Only include ${genders} people.`;
   }
 
   if (ageRange) {
     const currentYear = new Date().getFullYear();
     const minBirthYear = currentYear - ageRange[1];
     const maxBirthYear = currentYear - ageRange[0];
-    prompt += `\n6. Only include people born between ${minBirthYear} and ${maxBirthYear} (currently aged ${ageRange[0]}-${ageRange[1]})`;
+    prompt += `\n\nAge filter: Only include people born between ${minBirthYear} and ${maxBirthYear} (currently aged ${ageRange[0]}-${ageRange[1]}).`;
   }
 
   prompt += `
 
-Use Google Search to find current, accurate information about people in this category.
-
-IMPORTANT: Output ONLY a valid JSON array with this exact structure, no other text:
+After searching, output ONLY a valid JSON array with this exact structure (no other text, no markdown code blocks):
 [
   {
     "name": "Full Name",
     "gender": "male" | "female" | "other",
     "birthYear": 1990,
-    "reason": "Brief reason why they fit the category"
+    "reason": "Brief reason why they match the category based on your search results"
   }
-]`;
+]
+
+Remember: Search first, then return ONLY the JSON array based on what you found.`;
 
   log("[Gemini] Built prompt, length: " + prompt.length);
   onProgress?.("Searching the web for people...");
@@ -106,6 +109,7 @@ IMPORTANT: Output ONLY a valid JSON array with this exact structure, no other te
       contents: prompt,
       config: {
         tools: [groundingTool],
+        systemInstruction: "You are a research assistant that ALWAYS uses Google Search to find accurate, real-world information. Never make up or guess information - always search first. Your responses must be based on actual search results.",
       },
     });
 
@@ -150,8 +154,18 @@ IMPORTANT: Output ONLY a valid JSON array with this exact structure, no other te
     log("[Gemini] Got response text, length: " + text.length);
     log("[Gemini] First 500 chars: " + text.substring(0, 500));
 
+    // Strip markdown code blocks if present
+    let cleanedText = text;
+    if (text.includes("```json")) {
+      cleanedText = text.replace(/```json\s*/g, "").replace(/```\s*/g, "");
+      log("[Gemini] Stripped markdown code blocks");
+    } else if (text.includes("```")) {
+      cleanedText = text.replace(/```\s*/g, "");
+      log("[Gemini] Stripped generic code blocks");
+    }
+
     // Parse JSON response
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    const jsonMatch = cleanedText.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       log("[Gemini] No JSON array found. Full response saved to rawResponse");
       const err = new Error(`No JSON array in response. Got: ${text.substring(0, 300)}`);
