@@ -1,14 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Home, RotateCcw } from "lucide-react";
+import { ArrowRight, Home, Share2, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Round, Assignment } from "@/types";
 import { cn } from "@/lib/utils";
+import { shareRound } from "@/lib/share";
 
 interface RoundSummaryProps {
   round: Round;
+  categoryName: string;
   onNextRound: () => void;
   onEndGame: () => void;
   canContinue: boolean;
@@ -28,15 +31,26 @@ const assignmentColors: Record<Assignment, string> = {
 
 export function RoundSummary({
   round,
+  categoryName,
   onNextRound,
   onEndGame,
   canContinue,
 }: RoundSummaryProps) {
+  const [shareStatus, setShareStatus] = useState<"idle" | "shared" | "copied">("idle");
+
   // Sort assignments in F-M-K order
   const sortedAssignments = [...round.assignments].sort((a, b) => {
     const order: Assignment[] = ["fuck", "marry", "kill"];
     return order.indexOf(a.assignment) - order.indexOf(b.assignment);
   });
+
+  const handleShare = async () => {
+    const result = await shareRound(round, categoryName);
+    if (result.success) {
+      setShareStatus(result.method === "clipboard" ? "copied" : "shared");
+      setTimeout(() => setShareStatus("idle"), 2000);
+    }
+  };
 
   return (
     <motion.div
@@ -94,15 +108,40 @@ export function RoundSummary({
             No more eligible people remaining!
           </p>
         )}
-        <Button
-          onClick={onEndGame}
-          variant="outline"
-          size="touch"
-          className="w-full"
-        >
-          <Home className="h-5 w-5 mr-2" />
-          End Game
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleShare}
+            variant="outline"
+            size="touch"
+            className="flex-1"
+          >
+            {shareStatus === "idle" ? (
+              <>
+                <Share2 className="h-5 w-5 mr-2" />
+                Share
+              </>
+            ) : shareStatus === "copied" ? (
+              <>
+                <Copy className="h-5 w-5 mr-2" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Check className="h-5 w-5 mr-2" />
+                Shared!
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={onEndGame}
+            variant="outline"
+            size="touch"
+            className="flex-1"
+          >
+            <Home className="h-5 w-5 mr-2" />
+            End Game
+          </Button>
+        </div>
       </div>
     </motion.div>
   );

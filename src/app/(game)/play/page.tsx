@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { GameProvider, useGame } from "@/contexts/GameContext";
@@ -8,6 +8,7 @@ import { PersonCard, AssignmentSlots, Timer, RoundSummary } from "@/components/g
 import { Button } from "@/components/ui/button";
 import { LoadingScreen } from "@/components/shared/LoadingSpinner";
 import { usePreferences } from "@/lib/db/hooks";
+import { useFeedback } from "@/hooks/useFeedback";
 import type { GameMode, TimerConfig, Assignment, Person, CustomPerson } from "@/types";
 import { Home } from "lucide-react";
 import Link from "next/link";
@@ -22,6 +23,7 @@ interface GameConfig {
 function GameContent() {
   const router = useRouter();
   const preferences = usePreferences();
+  const { feedback } = useFeedback();
   const {
     status,
     session,
@@ -79,11 +81,18 @@ function GameContent() {
   const handleAssign = (assignment: Assignment) => {
     if (selectedPerson) {
       assignPerson(selectedPerson, assignment);
+      feedback("assign");
     }
+  };
+
+  const handleSelectPerson = (person: Person | CustomPerson) => {
+    selectPerson(person);
+    feedback("tap");
   };
 
   const handleNextRound = () => {
     completeRound();
+    feedback("success");
   };
 
   const handleEndGame = () => {
@@ -95,6 +104,10 @@ function GameContent() {
     // Auto-end game or force assignment
     // For now, just complete the round if possible
   };
+
+  const handleTimerTick = useCallback(() => {
+    feedback("tick");
+  }, [feedback]);
 
   // Loading state
   if (!config || !preferences || status === "idle") {
@@ -111,6 +124,7 @@ function GameContent() {
     return (
       <RoundSummary
         round={currentRound}
+        categoryName={session?.categoryName || config?.categoryName || "FMK"}
         onNextRound={handleNextRound}
         onEndGame={handleEndGame}
         canContinue={canContinue(preferences.genderFilter, preferences.ageRange)}
@@ -154,6 +168,7 @@ function GameContent() {
             <Timer
               duration={config.timerConfig.decisionTime}
               onComplete={handleTimerComplete}
+              onTick={handleTimerTick}
             />
           )}
         </div>
@@ -180,7 +195,7 @@ function GameContent() {
                     person={person}
                     assignment={assignment}
                     isSelected={selectedPerson?.id === person.id}
-                    onClick={() => !assignment && selectPerson(person)}
+                    onClick={() => !assignment && handleSelectPerson(person)}
                   />
                 );
               })}

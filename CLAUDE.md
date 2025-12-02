@@ -34,24 +34,42 @@ src/
 │   │   ├── play/         # Active gameplay
 │   │   ├── history/      # Past games
 │   │   ├── settings/     # Preferences
-│   │   └── custom/       # Custom categories (placeholder)
+│   │   └── custom/       # AI + manual custom categories
+│   ├── api/
+│   │   ├── ai/           # Claude API for category generation
+│   │   │   ├── generate/ # Generate custom categories
+│   │   │   └── validate/ # Validate generated lists
+│   │   └── images/proxy/ # CORS proxy for external images
 │   └── onboarding/       # First-launch flow
 ├── components/
 │   ├── ui/               # shadcn/ui (button, card, dialog, slider, switch, toast)
 │   ├── game/             # PersonCard, AssignmentSlots, Timer, RoundSummary
-│   ├── categories/       # CategoryCard, CategoryGrid, DailyChallengeCard
+│   ├── categories/       # CategoryCard, CategoryGrid, CustomCategoryForm, ManualCategoryForm
 │   ├── onboarding/       # OnboardingCarousel, PreferencesForm
 │   ├── shared/           # Header, BottomNav, LoadingSpinner
+│   ├── pwa/              # InstallBanner, OfflineIndicator
 │   └── providers/        # DatabaseProvider, OnboardingGate
 ├── contexts/
 │   └── GameContext.tsx   # Game state management with reducer
 ├── lib/
+│   ├── ai/               # Anthropic client and prompts
+│   ├── audio/            # Sound effects and haptic feedback
 │   ├── db/               # Dexie schema, hooks, init, seed
 │   ├── game/             # Engine (state machine), selection algorithm
+│   ├── images/           # TMDB/Wikipedia fetcher with caching
+│   ├── share/            # Web Share API utilities
 │   └── utils.ts          # cn() helper
+├── hooks/
+│   ├── usePersonImage.ts # Image loading with caching
+│   ├── useFeedback.ts    # Sound + haptic feedback
+│   ├── usePWA.ts         # PWA install prompt
+│   └── useOnlineStatus.ts
 ├── data/categories/      # Pre-built JSON (movie-stars, musicians, athletes, etc.)
 ├── types/                # TypeScript interfaces
-└── hooks/                # useGame, use-toast
+public/
+├── manifest.json         # PWA manifest
+├── sw.js                 # Service worker
+└── icons/                # PWA icons
 ```
 
 ### Game Flow
@@ -83,14 +101,29 @@ src/
 - movie-stars, musicians, athletes, reality-tv, politicians
 - comedians, influencers, tech-ceos, models, chefs
 
+## Implemented Features
+
+- **AI Category Generation**: Claude API creates custom categories from user prompts
+- **Image Fetching**: TMDB → Wikipedia waterfall with IndexedDB caching (LRU eviction)
+- **Manual Custom Lists**: Create your own lists without AI
+- **Sound Effects**: Web Audio API synthesized sounds for UI feedback
+- **Haptic Feedback**: Vibration API for mobile devices
+- **Share Results**: Web Share API with clipboard fallback
+- **PWA Support**: Manifest, service worker, install prompt
+- **Offline Mode**: Offline indicator, graceful degradation
+
 ## Not Yet Implemented
 
-- AI category generation (Claude API integration)
-- Image fetching (TMDB/Wikipedia waterfall)
-- Daily challenges (Vercel KV)
+- Daily challenges (Vercel KV) - explicitly deferred
 - Admin panel
-- PWA service worker
-- Sound effects / haptics
+- PNG icons (currently SVG placeholder)
+
+## Environment Variables
+
+```bash
+ANTHROPIC_API_KEY=    # Required for AI category generation
+TMDB_API_KEY=         # Optional for celebrity images
+```
 
 ## Design Principles
 

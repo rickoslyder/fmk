@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 interface TimerProps {
   duration: number;
   onComplete: () => void;
+  onTick?: () => void;
   isPaused?: boolean;
   showWarning?: boolean;
   warningThreshold?: number;
@@ -16,6 +17,7 @@ interface TimerProps {
 export function Timer({
   duration,
   onComplete,
+  onTick,
   isPaused = false,
   showWarning = true,
   warningThreshold = 10,
@@ -36,12 +38,16 @@ export function Timer({
           onComplete();
           return 0;
         }
+        // Play tick sound in warning zone
+        if (prev <= warningThreshold && onTick) {
+          onTick();
+        }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isPaused, remaining, onComplete]);
+  }, [isPaused, remaining, onComplete, onTick, warningThreshold]);
 
   const percentage = (remaining / duration) * 100;
   const isWarning = showWarning && remaining <= warningThreshold;

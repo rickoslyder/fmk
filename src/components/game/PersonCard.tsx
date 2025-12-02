@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { User } from "lucide-react";
+import { User, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { usePersonImage } from "@/hooks/usePersonImage";
 import type { Person, CustomPerson, Assignment } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,7 @@ export function PersonCard({
 }: PersonCardProps) {
   const currentYear = new Date().getFullYear();
   const age = person.birthYear ? currentYear - person.birthYear : null;
+  const { imageUrl, status } = usePersonImage(person);
 
   return (
     <motion.div
@@ -53,13 +55,31 @@ export function PersonCard({
           className
         )}
       >
-        {/* Placeholder avatar */}
-        <div className="absolute inset-0 bg-gradient-to-b from-secondary to-secondary/50 flex items-center justify-center">
-          <User className="h-16 w-16 text-muted-foreground/50" />
+        {/* Image or placeholder */}
+        <div className="absolute inset-0 bg-gradient-to-b from-secondary to-secondary/50">
+          {status === "loading" && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-muted-foreground/50 animate-spin" />
+            </div>
+          )}
+
+          {status === "error" && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <User className="h-16 w-16 text-muted-foreground/50" />
+            </div>
+          )}
+
+          {status === "success" && imageUrl && (
+            <img
+              src={imageUrl}
+              alt={person.name}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )}
         </div>
 
         {/* Name overlay */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 z-10">
           <h3 className="font-semibold text-white text-sm truncate">
             {person.name}
           </h3>
@@ -74,7 +94,7 @@ export function PersonCard({
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             className={cn(
-              "absolute inset-0 flex items-center justify-center",
+              "absolute inset-0 flex items-center justify-center z-20",
               "bg-gradient-to-br",
               assignmentColors[assignment]
             )}
