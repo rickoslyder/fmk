@@ -8,9 +8,10 @@ import { PersonCard, AssignmentSlots, Timer, RoundSummary } from "@/components/g
 import { Button } from "@/components/ui/button";
 import { LoadingScreen } from "@/components/shared/LoadingSpinner";
 import { usePreferences } from "@/lib/db/hooks";
+import { saveGameToHistory } from "@/lib/db/init";
 import { useFeedback } from "@/hooks/useFeedback";
 import type { GameMode, TimerConfig, Assignment, Person, CustomPerson, Gender } from "@/types";
-import { Home } from "lucide-react";
+import { Home, X } from "lucide-react";
 import Link from "next/link";
 
 interface PlayerConfig {
@@ -26,6 +27,7 @@ interface GameConfig {
   mode: GameMode;
   timerConfig: TimerConfig;
   players?: PlayerConfig[];
+  customPeople?: Person[];
 }
 
 function GameContent() {
@@ -96,12 +98,18 @@ function GameContent() {
   // Start game when config is loaded
   useEffect(() => {
     if (config && status === "idle" && preferences) {
+      // Build players array - use config.players for pass-and-play, or default solo player
+      const players = config.mode === "pass-and-play" && config.players?.length
+        ? config.players.map(p => ({ id: p.id, name: p.name }))
+        : [{ id: "solo", name: "Player" }];
+
       startGame(
         config.categoryId,
         config.categoryName,
         config.mode,
-        config.mode === "solo" ? [{ id: "solo", name: "Player" }] : [],
-        config.timerConfig
+        players,
+        config.timerConfig,
+        config.customPeople
       );
     }
   }, [config, status, preferences, startGame]);
@@ -141,15 +149,33 @@ function GameContent() {
     }
   };
 
-  const handleEndGame = () => {
+  const handleEndGame = async () => {
+    // Save game to history if there are completed rounds
+    if (session && session.rounds.length > 0) {
+      await saveGameToHistory({
+        id: session.id,
+        mode: session.mode,
+        categoryId: session.categoryId,
+        categoryName: session.categoryName,
+        players: session.players,
+        rounds: session.rounds,
+        totalRounds: session.rounds.length,
+        playedAt: Date.now(),
+      });
+    }
     reset();
     router.replace("/");
   };
 
-  const handleTimerComplete = () => {
-    // Auto-end game or force assignment
-    // For now, just complete the round if possible
-  };
+  const handleTimerComplete = useCallback(() => {
+    // When timer expires, show feedback and auto-complete if possible
+    feedback("error");
+
+    // If all assignments are made, complete the round
+    if (currentRound && currentRound.assignments.length === 3) {
+      completeRound();
+    }
+  }, [feedback, currentRound, completeRound]);
 
   const handleTimerTick = useCallback(() => {
     feedback("tick");
@@ -215,15 +241,30 @@ function GameContent() {
       <div className="flex flex-col min-h-[calc(100vh-8rem)] p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="font-bold">{session?.categoryName}</h1>
-            <p className="text-sm text-muted-foreground">
-              Round {(session?.rounds.length ?? 0) + 1}
-              {currentPlayer && ` • ${currentPlayer.name}'s turn`}
-            </p>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => {
+                if (confirm("Exit game? Your progress will be lost.")) {
+                  handleEndGame();
+                }
+              }}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="font-bold">{session?.categoryName}</h1>
+              <p className="text-sm text-muted-foreground">
+                Round {(session?.rounds.length ?? 0) + 1}
+                {currentPlayer && ` • ${currentPlayer.name}'s turn`}
+              </p>
+            </div>
           </div>
-          {config.timerConfig.enabled && (
+          {config.timerConfig.enabled && currentRound && (
             <Timer
+              key={currentRound.id}
               duration={config.timerConfig.decisionTime}
               onComplete={handleTimerComplete}
               onTick={handleTimerTick}

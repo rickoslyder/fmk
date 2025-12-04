@@ -139,7 +139,11 @@ export function RoundSummary({
             )}
           </Button>
           <Button
-            onClick={onEndGame}
+            onClick={() => {
+              if (confirm("End game and return home?")) {
+                onEndGame();
+              }
+            }}
             variant="outline"
             size="touch"
             className="flex-1"

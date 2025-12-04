@@ -35,7 +35,8 @@ interface GameContextValue extends GameState {
     categoryName: string,
     mode: GameMode,
     players: Player[],
-    timerConfig: TimerConfig
+    timerConfig: TimerConfig,
+    customPeople?: Person[]
   ) => void;
   loadNextRound: (genderFilter: Gender[], ageRange: [number, number]) => boolean;
   selectPerson: (person: Person | CustomPerson) => void;
@@ -69,11 +70,12 @@ export function GameProvider({ children }: GameProviderProps) {
       categoryName: string,
       mode: GameMode,
       players: Player[],
-      timerConfig: TimerConfig
+      timerConfig: TimerConfig,
+      customPeople?: Person[]
     ) => {
       dispatch({
         type: "START_GAME",
-        payload: { categoryId, categoryName, mode, players, timerConfig },
+        payload: { categoryId, categoryName, mode, players, timerConfig, customPeople },
       });
     },
     []
@@ -86,7 +88,10 @@ export function GameProvider({ children }: GameProviderProps) {
       const categoryId = state.session.categoryId;
       let people: Person[];
 
-      if (categoryId === "random") {
+      // Use customPeople from session if available (for custom/random categories)
+      if (state.session.customPeople && state.session.customPeople.length > 0) {
+        people = state.session.customPeople;
+      } else if (categoryId === "random") {
         people = getRandomPeople(100);
       } else {
         people = getPeopleByCategory(categoryId);
@@ -136,7 +141,10 @@ export function GameProvider({ children }: GameProviderProps) {
       const categoryId = state.session.categoryId;
       let people: Person[];
 
-      if (categoryId === "random") {
+      // Use customPeople from session if available (for custom/random categories)
+      if (state.session.customPeople && state.session.customPeople.length > 0) {
+        people = state.session.customPeople;
+      } else if (categoryId === "random") {
         people = getRandomPeople(100);
       } else {
         people = getPeopleByCategory(categoryId);
@@ -186,7 +194,10 @@ export function GameProvider({ children }: GameProviderProps) {
       const categoryId = state.session.categoryId;
       let people: Person[];
 
-      if (categoryId === "random") {
+      // Use customPeople from session if available (for custom/random categories)
+      if (state.session.customPeople && state.session.customPeople.length > 0) {
+        people = state.session.customPeople;
+      } else if (categoryId === "random") {
         people = getRandomPeople(100);
       } else {
         people = getPeopleByCategory(categoryId);
@@ -208,7 +219,10 @@ export function GameProvider({ children }: GameProviderProps) {
       const categoryId = state.session.categoryId;
       let people: Person[];
 
-      if (categoryId === "random") {
+      // Use customPeople from session if available (for custom/random categories)
+      if (state.session.customPeople && state.session.customPeople.length > 0) {
+        people = state.session.customPeople;
+      } else if (categoryId === "random") {
         people = getRandomPeople(100);
       } else {
         people = getPeopleByCategory(categoryId);

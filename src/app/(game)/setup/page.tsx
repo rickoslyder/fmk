@@ -6,7 +6,7 @@ import { ArrowLeft, Play, Users, User, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { getCategoryById } from "@/data/categories";
+import { getCategoryById, getRandomPeople } from "@/data/categories";
 import { usePreferences, useSavedPlayers, useCustomCategories } from "@/lib/db/hooks";
 import { db } from "@/lib/db";
 import { PlayerManager } from "@/components/players";
@@ -90,6 +90,18 @@ function SetupContent() {
       }];
     }
 
+    // Get custom people for custom categories or random mix
+    let customPeople;
+    if (isCustom && customCategories) {
+      const customCategory = customCategories.find(c => c.id === categoryId);
+      if (customCategory) {
+        customPeople = customCategory.people;
+      }
+    } else if (categoryId === "random") {
+      // Pre-select random people to ensure consistency throughout the game
+      customPeople = getRandomPeople(100);
+    }
+
     // Store game config in sessionStorage for the play page
     sessionStorage.setItem("fmk-game-config", JSON.stringify({
       categoryId,
@@ -97,6 +109,7 @@ function SetupContent() {
       mode,
       timerConfig,
       players,
+      customPeople,
     }));
 
     router.push("/play");

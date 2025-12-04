@@ -47,7 +47,8 @@ function createSession(
   categoryName: string,
   mode: "solo" | "pass-and-play",
   players: Player[],
-  timerConfig: TimerConfig
+  timerConfig: TimerConfig,
+  customPeople?: Person[]
 ): GameSession {
   return {
     id: generateId(),
@@ -59,6 +60,7 @@ function createSession(
     currentRoundIndex: 0,
     timerConfig,
     startedAt: Date.now(),
+    customPeople,
   };
 }
 
@@ -66,8 +68,8 @@ function createSession(
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "START_GAME": {
-      const { categoryId, categoryName, mode, players, timerConfig } = action.payload;
-      const session = createSession(categoryId, categoryName, mode, players, timerConfig);
+      const { categoryId, categoryName, mode, players, timerConfig, customPeople } = action.payload;
+      const session = createSession(categoryId, categoryName, mode, players, timerConfig, customPeople);
 
       return {
         ...state,
@@ -110,6 +112,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         selectedPerson: action.payload,
+        error: null,
       };
     }
 
@@ -199,6 +202,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         currentRound: updatedRound,
         usedPersonIds: newUsedIds,
         selectedPerson: null,
+        error: null,
       };
     }
 
@@ -224,6 +228,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         session: updatedSession,
         currentRound: null,
         selectedPerson: null,
+        error: null,
       };
     }
 
@@ -233,6 +238,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         status: "selecting",
         currentRound: null,
         selectedPerson: null,
+        error: null,
       };
     }
 

@@ -67,6 +67,8 @@ export interface GameSession {
   timerConfig: TimerConfig;
   startedAt: number;
   completedAt?: number;
+  /** Custom people for custom/random categories (stored to ensure consistency) */
+  customPeople?: Person[];
 }
 
 /** Current game state */
@@ -84,7 +86,7 @@ export interface GameState {
 
 /** Game actions for reducer */
 export type GameAction =
-  | { type: "START_GAME"; payload: { categoryId: string; categoryName: string; mode: GameMode; players: Player[]; timerConfig: TimerConfig } }
+  | { type: "START_GAME"; payload: { categoryId: string; categoryName: string; mode: GameMode; players: Player[]; timerConfig: TimerConfig; customPeople?: Person[] } }
   | { type: "SET_ROUND_PEOPLE"; payload: [Person | CustomPerson, Person | CustomPerson, Person | CustomPerson] }
   | { type: "SELECT_PERSON"; payload: Person | CustomPerson }
   | { type: "ASSIGN_PERSON"; payload: { person: Person | CustomPerson; assignment: Assignment } }
